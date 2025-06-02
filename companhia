@@ -1,0 +1,76 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_avioes 4
+
+void limpa_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+//registra avioes 
+void registra_aviao(int avioes[], int *total ){
+    
+        if(*total >= MAX_avioes){
+            printf("LIMITE!!todos os campos preenhido!\n");
+            return;
+        }
+        
+        printf("Digite o numero do aviao: ");
+        scanf("%d", &avioes[*total]);
+        printf("\n");
+        limpa_buffer();
+       (*total)++; 
+        
+        printf("aviao cadastrado com sucesso!\n");
+        
+    
+    
+}
+//mostra os avioes que foram cadastrado.
+void aviao_cadastrado(int avioes[], int total) {
+    if (total == 0) {
+        printf("Nenhum avião cadastrado ainda.\n");
+    } else {
+        printf("Aviões cadastrados:\n");
+        for (int i = 0; i < total; i++) {
+            printf("- Avião: %d|Numero: %d\n", i + 1, avioes[i]);
+        }
+    }
+}
+
+int main() {
+   int opcao;
+   int avioes[MAX_avioes];
+   int total_avioes = 0;
+   
+   do{
+        printf("\n");
+        printf("=====Companhia LATAM======\n");
+        printf("\n");
+        printf("_____MENU LATAM_____\n");
+        printf("1-Registraa aviao.\n");
+        printf("2-avoies disponivel.\n");
+        printf("3-Reservas de passagem.\n");
+        printf("4-Consulta por aviao.\n");
+        printf("5-Consulta por passageiros.\n");
+        printf("6-Avioes cadastrado disponivel.\n");
+        printf("7-Sair...\n");
+        printf("\n");
+        printf("digite a opcao: ");
+        scanf("%d",&opcao);
+        limpa_buffer();
+        
+        switch(opcao){
+            case 1:registra_aviao(avioes, &total_avioes);
+            break;
+            case 2:aviao_cadastrado(avioes,total_avioes);
+                break;
+            default : 
+                printf("opcao invalida!\n");
+                
+        }
+   }while(opcao != 6);
+   
+    return 0;
+}
