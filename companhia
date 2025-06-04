@@ -209,3 +209,231 @@ int main() {
    
     return 0;
 }
+
+
+//version2.0
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+
+#define MAX_AVIOES 4
+#define MAX_PASSAGEIROS 20
+#define MAX_NOME 50
+#define ASSENTOS_POR_AVIAO 44
+
+void limpa_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+// Cadastrar aviões
+void cadastrar_aviao(int avioes[], int *total_avioes, int assentos_disponiveis[]) {
+    if (*total_avioes >= MAX_AVIOES) {
+        printf("Limite de aviões atingido!\n");
+        return;
+    }
+
+    printf("Digite o código do avião: ");
+    scanf("%d", &avioes[*total_avioes]);
+    limpa_buffer();
+
+    assentos_disponiveis[*total_avioes] = ASSENTOS_POR_AVIAO;
+    (*total_avioes)++;
+
+    printf("Avião cadastrado com sucesso!\n");
+}
+
+// Cadastrar passageiros
+void cadastrar_passageiro(char nomes[][MAX_NOME], int passageiros_aviao[], int *total_passageiros, int avioes[], int total_avioes) {
+    if (*total_passageiros >= MAX_PASSAGEIROS) {
+        printf("Limite de passageiros atingido!\n");
+        return;
+    }
+
+    if (total_avioes == 0) {
+        printf("Nenhum avião cadastrado ainda!\n");
+        return;
+    }
+
+    printf("Digite o nome do passageiro: ");
+    fgets(nomes[*total_passageiros], MAX_NOME, stdin);
+    nomes[*total_passageiros][strcspn(nomes[*total_passageiros], "\n")] = 0;
+
+    printf("Aviões disponíveis:\n");
+    for (int i = 0; i < total_avioes; i++) {
+        printf("- Avião código: %d\n", avioes[i]);
+    }
+
+    printf("Digite o código do avião que deseja embarcar: ");
+    int codigo;
+    scanf("%d", &codigo);
+    limpa_buffer();
+
+    int aviao_encontrado = -1;
+    for (int i = 0; i < total_avioes; i++) {
+        if (avioes[i] == codigo) {
+            aviao_encontrado = i;
+            break;
+        }
+    }
+
+    if (aviao_encontrado == -1) {
+        printf("Avião não encontrado!\n");
+        return;
+    }
+
+    passageiros_aviao[*total_passageiros] = aviao_encontrado;
+    (*total_passageiros)++;
+
+    printf("Passageiro cadastrado com sucesso!\n");
+}
+
+// Comprar passagem
+void comprar_passagem(char nomes[][MAX_NOME], int passageiros_aviao[], int passagens_compradas[], int assentos_disponiveis[], int total_passageiros) {
+    char nome_busca[MAX_NOME];
+    printf("Digite seu nome para comprar passagem: ");
+    fgets(nome_busca, MAX_NOME, stdin);
+    nome_busca[strcspn(nome_busca, "\n")] = 0;
+
+    int index = -1;
+    for (int i = 0; i < total_passageiros; i++) {
+        if (strcmp(nome_busca, nomes[i]) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        printf("Passageiro não encontrado!\n");
+        return;
+    }
+
+    int aviao_idx = passageiros_aviao[index];
+
+    printf("Digite quantas passagens deseja comprar (máx 20): ");
+    int qtd;
+    scanf("%d", &qtd);
+    limpa_buffer();
+
+    if (qtd > 20 || qtd <= 0) {
+        printf("Quantidade inválida!\n");
+        return;
+    }
+
+    if (assentos_disponiveis[aviao_idx] < qtd) {
+        printf("Assentos insuficientes. Disponíveis: %d\n", assentos_disponiveis[aviao_idx]);
+        return;
+    }
+
+    assentos_disponiveis[aviao_idx] -= qtd;
+    passagens_compradas[index] += qtd;
+
+    printf("Compra realizada com sucesso! %d passagens compradas.\n", qtd);
+}
+
+// Consultar passageiro
+void consultar_passageiro(char nomes[][MAX_NOME], int passageiros_aviao[], int passagens_compradas[], int avioes[], int total_passageiros) {
+    char nome[MAX_NOME];
+    printf("Digite o nome do passageiro: ");
+    fgets(nome, MAX_NOME, stdin);
+    nome[strcspn(nome, "\n")] = 0;
+
+    for (int i = 0; i < total_passageiros; i++) {
+        if (strcmp(nomes[i], nome) == 0) {
+            printf("Passageiro %s está no avião %d\n", nomes[i], avioes[passageiros_aviao[i]]);
+            printf("Passagens compradas: %d\n", passagens_compradas[i]);
+            return;
+        }
+    }
+    printf("Passageiro não encontrado.\n");
+}
+
+// Consultar avião
+void consultar_aviao(int avioes[], int assentos_disponiveis[], int total_avioes) {
+    int codigo;
+    printf("Digite o código do avião: ");
+    scanf("%d", &codigo);
+    limpa_buffer();
+
+    for (int i = 0; i < total_avioes; i++) {
+        if (avioes[i] == codigo) {
+            printf("Avião %d encontrado. Assentos disponíveis: %d\n", codigo, assentos_disponiveis[i]);
+            return;
+        }
+    }
+    printf("Avião não encontrado.\n");
+}
+
+// Listar passagens compradas
+void listar_passagens(char nomes[][MAX_NOME], int passageiros_aviao[], int passagens_compradas[], int avioes[], int total_passageiros) {
+    printf("\n--- Passagens Compradas ---\n");
+    bool alguma = false;
+
+    for (int i = 0; i < total_passageiros; i++) {
+        if (passagens_compradas[i] > 0) {
+            printf("Passageiro: %s | Avião: %d | Passagens: %d\n", nomes[i], avioes[passageiros_aviao[i]], passagens_compradas[i]);
+            alguma = true;
+        }
+    }
+
+    if (!alguma) {
+        printf("Nenhuma passagem comprada até agora.\n");
+    }
+}
+
+int main() {
+    int opcao;
+    int avioes[MAX_AVIOES];
+    int total_avioes = 0;
+
+    char nomes[MAX_PASSAGEIROS][MAX_NOME];
+    int passageiros_aviao[MAX_PASSAGEIROS];
+    int total_passageiros = 0;
+
+    int assentos_disponiveis[MAX_AVIOES];
+    int passagens_compradas[MAX_PASSAGEIROS] = {0};
+
+    do {
+        printf("\n===== COMPANHIA LATAM =====\n");
+        printf("1 - Cadastrar avião\n");
+        printf("2 - Cadastrar passageiro\n");
+        printf("3 - Comprar passagem\n");
+        printf("4 - Consultar passageiro\n");
+        printf("5 - Consultar avião\n");
+        printf("6 - Listar passagens compradas\n");
+        printf("7 - Sair\n");
+        printf("Escolha uma opção: ");
+        scanf("%d", &opcao);
+        limpa_buffer();
+
+        switch (opcao) {
+            case 1:
+                cadastrar_aviao(avioes, &total_avioes, assentos_disponiveis);
+                break;
+            case 2:
+                cadastrar_passageiro(nomes, passageiros_aviao, &total_passageiros, avioes, total_avioes);
+                break;
+            case 3:
+                comprar_passagem(nomes, passageiros_aviao, passagens_compradas, assentos_disponiveis, total_passageiros);
+                break;
+            case 4:
+                consultar_passageiro(nomes, passageiros_aviao, passagens_compradas, avioes, total_passageiros);
+                break;
+            case 5:
+                consultar_aviao(avioes, assentos_disponiveis, total_avioes);
+                break;
+            case 6:
+                listar_passagens(nomes, passageiros_aviao, passagens_compradas, avioes, total_passageiros);
+                break;
+            case 7:
+                printf("Saindo do sistema...\n");
+                break;
+            default:
+                printf("Opção inválida!\n");
+        }
+    } while (opcao != 7);
+
+    return 0;
+}
