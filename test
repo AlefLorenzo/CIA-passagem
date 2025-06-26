@@ -1,0 +1,633 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <time.h>
+#include <ctype.h>
+
+#define MAX_AVIOES 4
+#define MAX_PASSAGEIROS 20
+#define MAX_NOME 50
+#define MAX_SENHA 20
+#define ASSENTOS_POR_AVIAO 44
+#define SENHA_GERENTE "admin123"
+
+// Estrutura para armazenar dados do passageiro
+typedef struct {
+    int id;
+    char nome[MAX_NOME];
+    int aviao_idx;
+    int passagens_compradas;
+    int portao_embarque;
+    char usuario[MAX_NOME];
+    char senha[MAX_SENHA];
+} Passageiro;
+
+typedef struct {
+    int codigo;
+    int assentos_disponiveis;
+    char destino[MAX_NOME];
+    char horario[10];
+} Aviao;
+
+void limpa_buffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
+void exibir_linha() {
+    printf("========================================\n");
+}
+
+void exibir_titulo(const char *titulo) {
+    printf("\n");
+    exibir_linha();
+    printf("          %s\n", titulo);
+    exibir_linha();
+    printf("\n");
+}
+
+void exibir_mensagem_sucesso(const char *mensagem) {
+    printf("\n");
+    exibir_linha();
+    printf(" ✓ %s\n", mensagem);
+    exibir_linha();
+    printf("\n");
+}
+
+void exibir_mensagem_erro(const char *mensagem) {
+    printf("\n");
+    exibir_linha();
+    printf(" ✗ %s\n", mensagem);
+    exibir_linha();
+    printf("\n");
+}
+
+// Gerar ID único baseado no timestamp
+int gerar_id_unico() {
+    static int ultimo_id = 1000;
+    return ++ultimo_id;
+}
+
+// Gerar número de portão aleatório
+int gerar_portao() {
+    return (rand() % 30) + 1; // Portões de 1 a 30
+}
+
+// Cadastrar aviões
+void cadastrar_aviao(Aviao avioes[], int *total_avioes) {
+    if (*total_avioes >= MAX_AVIOES) {
+        exibir_mensagem_erro("Limite de aviões atingido!");
+        return;
+    }
+
+    exibir_titulo("CADASTRO DE AVIÃO");
+    
+    printf("✈ Digite o código do avião: ");
+    scanf("%d", &avioes[*total_avioes].codigo);
+    limpa_buffer();
+
+    printf("🌍 Digite o destino do avião: ");
+    fgets(avioes[*total_avioes].destino, MAX_NOME, stdin);
+    avioes[*total_avioes].destino[strcspn(avioes[*total_avioes].destino, "\n")] = '\0';
+
+    printf("🕒 Digite o horário de partida (HH:MM): ");
+    fgets(avioes[*total_avioes].horario, 10, stdin);
+    avioes[*total_avioes].horario[strcspn(avioes[*total_avioes].horario, "\n")] = '\0';
+
+    avioes[*total_avioes].assentos_disponiveis = ASSENTOS_POR_AVIAO;
+    (*total_avioes)++;
+
+    exibir_mensagem_sucesso("Avião cadastrado com sucesso!");
+}
+
+// Cadastrar passageiros
+void cadastrar_passageiro(Passageiro passageiros[], int *total_passageiros, Aviao avioes[], int total_avioes) {
+    if (*total_passageiros >= MAX_PASSAGEIROS) {
+        exibir_mensagem_erro("Limite de passageiros atingido!");
+        return;
+    }
+
+    if (total_avioes == 0) {
+        exibir_mensagem_erro("Nenhum avião cadastrado ainda!");
+        return;
+    }
+
+    exibir_titulo("CADASTRO DE PASSAGEIRO");
+    
+    // Gerar ID único para o passageiro
+    passageiros[*total_passageiros].id = gerar_id_unico();
+    
+    printf("👤 Digite o nome do passageiro: ");
+    fgets(passageiros[*total_passageiros].nome, MAX_NOME, stdin);
+    passageiros[*total_passageiros].nome[strcspn(passageiros[*total_passageiros].nome, "\n")] = '\0';
+
+    printf("🔑 Crie um nome de usuário: ");
+    fgets(passageiros[*total_passageiros].usuario, MAX_NOME, stdin);
+    passageiros[*total_passageiros].usuario[strcspn(passageiros[*total_passageiros].usuario, "\n")] = '\0';
+
+    printf("🔒 Crie uma senha: ");
+    fgets(passageiros[*total_passageiros].senha, MAX_SENHA, stdin);
+    passageiros[*total_passageiros].senha[strcspn(passageiros[*total_passageiros].senha, "\n")] = '\0';
+
+    exibir_titulo("AVIÕES DISPONÍVEIS");
+    for (int i = 0; i < total_avioes; i++) {
+        printf(" ✈ Código: %d | Destino: %s | Horário: %s | Assentos: %d\n", 
+               avioes[i].codigo, avioes[i].destino, avioes[i].horario, avioes[i].assentos_disponiveis);
+    }
+
+    printf("\n✈ Digite o código do avião que deseja embarcar: ");
+    int codigo;
+    scanf("%d", &codigo);
+    limpa_buffer();
+
+    int aviao_encontrado = -1;
+    for (int i = 0; i < total_avioes; i++) {
+        if (avioes[i].codigo == codigo) {
+            aviao_encontrado = i;
+            break;
+        }
+    }
+
+    if (aviao_encontrado == -1) {
+        exibir_mensagem_erro("Avião não encontrado!");
+        return;
+    }
+
+    passageiros[*total_passageiros].aviao_idx = aviao_encontrado;
+    passageiros[*total_passageiros].passagens_compradas = 0;
+    passageiros[*total_passageiros].portao_embarque = gerar_portao();
+    (*total_passageiros)++;
+
+    exibir_mensagem_sucesso("Passageiro cadastrado com sucesso!");
+    printf("   ID do passageiro: %d\n", passageiros[*total_passageiros - 1].id);
+}
+
+// Comprar passagem
+void comprar_passagem(Passageiro passageiros[], int total_passageiros, Aviao avioes[]) {
+    exibir_titulo("COMPRA DE PASSAGEM");
+    
+    char usuario[MAX_NOME];
+    char senha[MAX_SENHA];
+    
+    printf("🔑 Usuário: ");
+    fgets(usuario, MAX_NOME, stdin);
+    usuario[strcspn(usuario, "\n")] = '\0';
+    
+    printf("🔒 Senha: ");
+    fgets(senha, MAX_SENHA, stdin);
+    senha[strcspn(senha, "\n")] = '\0';
+
+    int index = -1;
+    for (int i = 0; i < total_passageiros; i++) {
+        if (strcmp(passageiros[i].usuario, usuario) == 0 && 
+            strcmp(passageiros[i].senha, senha) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        exibir_mensagem_erro("Usuário ou senha incorretos!");
+        return;
+    }
+
+    int aviao_idx = passageiros[index].aviao_idx;
+
+    printf("🎫 Digite quantas passagens deseja comprar (máx 4): ");
+    int qtd;
+    scanf("%d", &qtd);
+    limpa_buffer();
+
+    if (qtd > 4 || qtd <= 0) {
+        exibir_mensagem_erro("Quantidade inválida! Máximo de 4 passagens por compra.");
+        return;
+    }
+
+    if (avioes[aviao_idx].assentos_disponiveis < qtd) {
+        exibir_mensagem_erro("Assentos insuficientes.");
+        printf("   Disponíveis: %d\n", avioes[aviao_idx].assentos_disponiveis);
+        return;
+    }
+
+    avioes[aviao_idx].assentos_disponiveis -= qtd;
+    passageiros[index].passagens_compradas += qtd;
+
+    exibir_mensagem_sucesso("Compra realizada com sucesso!");
+    printf("   🎫 Passagens compradas: %d\n", qtd);
+}
+
+// Visualizar informações do usuário
+void visualizar_minhas_passagens(Passageiro passageiros[], int total_passageiros, Aviao avioes[]) {
+    exibir_titulo("MINHAS PASSAGENS");
+    
+    char usuario[MAX_NOME];
+    char senha[MAX_SENHA];
+    
+    printf("🔑 Usuário: ");
+    fgets(usuario, MAX_NOME, stdin);
+    usuario[strcspn(usuario, "\n")] = '\0';
+    
+    printf("🔒 Senha: ");
+    fgets(senha, MAX_SENHA, stdin);
+    senha[strcspn(senha, "\n")] = '\0';
+
+    int index = -1;
+    for (int i = 0; i < total_passageiros; i++) {
+        if (strcmp(passageiros[i].usuario, usuario) == 0 && 
+            strcmp(passageiros[i].senha, senha) == 0) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        exibir_mensagem_erro("Usuário ou senha incorretos!");
+        return;
+    }
+
+    exibir_titulo("INFORMAÇÕES DO PASSAGEIRO");
+    printf(" 🆔 ID: %d\n", passageiros[index].id);
+    printf(" 👤 Nome: %s\n", passageiros[index].nome);
+    printf(" ✈ Voo: %d | Destino: %s | Horário: %s\n", 
+           avioes[passageiros[index].aviao_idx].codigo,
+           avioes[passageiros[index].aviao_idx].destino,
+           avioes[passageiros[index].aviao_idx].horario);
+    printf(" 🎫 Passagens compradas: %d\n", passageiros[index].passagens_compradas);
+    printf(" 🚪 Portão de embarque: %d\n", passageiros[index].portao_embarque);
+}
+
+// Consultar passageiro (gerente)
+void consultar_passageiro(Passageiro passageiros[], int total_passageiros, Aviao avioes[]) {
+    exibir_titulo("CONSULTA DE PASSAGEIRO");
+    
+    int opcao;
+    printf("1. Buscar por ID\n");
+    printf("2. Buscar por nome\n");
+    printf("👉 Escolha uma opção: ");
+    scanf("%d", &opcao);
+    limpa_buffer();
+
+    if (opcao == 1) {
+        int id;
+        printf("🔍 Digite o ID do passageiro: ");
+        scanf("%d", &id);
+        limpa_buffer();
+
+        for (int i = 0; i < total_passageiros; i++) {
+            if (passageiros[i].id == id) {
+                exibir_titulo("INFORMAÇÕES DO PASSAGEIRO");
+                printf(" 🆔 ID: %d\n", passageiros[i].id);
+                printf(" 👤 Nome: %s\n", passageiros[i].nome);
+                printf(" 🔑 Usuário: %s\n", passageiros[i].usuario);
+                printf(" ✈ Voo: %d | Destino: %s | Horário: %s\n", 
+                       avioes[passageiros[i].aviao_idx].codigo,
+                       avioes[passageiros[i].aviao_idx].destino,
+                       avioes[passageiros[i].aviao_idx].horario);
+                printf(" 🎫 Passagens compradas: %d\n", passageiros[i].passagens_compradas);
+                printf(" 🚪 Portão de embarque: %d\n", passageiros[i].portao_embarque);
+                return;
+            }
+        }
+        exibir_mensagem_erro("Passageiro não encontrado.");
+    } else if (opcao == 2) {
+        char nome[MAX_NOME];
+        printf("🔍 Digite o nome do passageiro: ");
+        fgets(nome, MAX_NOME, stdin);
+        nome[strcspn(nome, "\n")] = '\0';
+
+        bool encontrado = false;
+        for (int i = 0; i < total_passageiros; i++) {
+            if (strcmp(passageiros[i].nome, nome) == 0) {
+                exibir_titulo("INFORMAÇÕES DO PASSAGEIRO");
+                printf(" 🆔 ID: %d\n", passageiros[i].id);
+                printf(" 👤 Nome: %s\n", passageiros[i].nome);
+                printf(" 🔑 Usuário: %s\n", passageiros[i].usuario);
+                printf(" ✈ Voo: %d | Destino: %s | Horário: %s\n", 
+                       avioes[passageiros[i].aviao_idx].codigo,
+                       avioes[passageiros[i].aviao_idx].destino,
+                       avioes[passageiros[i].aviao_idx].horario);
+                printf(" 🎫 Passagens compradas: %d\n", passageiros[i].passagens_compradas);
+                printf(" 🚪 Portão de embarque: %d\n", passageiros[i].portao_embarque);
+                encontrado = true;
+            }
+        }
+        if (!encontrado) {
+            exibir_mensagem_erro("Passageiro não encontrado.");
+        }
+    } else {
+        exibir_mensagem_erro("Opção inválida!");
+    }
+}
+
+// Editar passageiro
+void editar_passageiro(Passageiro passageiros[], int total_passageiros, Aviao avioes[], int total_avioes) {
+    exibir_titulo("EDITAR PASSAGEIRO");
+    
+    int id;
+    printf("🔍 Digite o ID do passageiro a editar: ");
+    scanf("%d", &id);
+    limpa_buffer();
+
+    int index = -1;
+    for (int i = 0; i < total_passageiros; i++) {
+        if (passageiros[i].id == id) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        exibir_mensagem_erro("Passageiro não encontrado!");
+        return;
+    }
+
+    printf("\nDeixe em branco para manter o valor atual.\n");
+
+    printf("👤 Nome atual: %s\nNovo nome: ", passageiros[index].nome);
+    char novo_nome[MAX_NOME];
+    fgets(novo_nome, MAX_NOME, stdin);
+    novo_nome[strcspn(novo_nome, "\n")] = '\0';
+    if (strlen(novo_nome) > 0) {
+        strcpy(passageiros[index].nome, novo_nome);
+    }
+
+    printf("🔑 Usuário atual: %s\nNovo usuário: ", passageiros[index].usuario);
+    char novo_usuario[MAX_NOME];
+    fgets(novo_usuario, MAX_NOME, stdin);
+    novo_usuario[strcspn(novo_usuario, "\n")] = '\0';
+    if (strlen(novo_usuario) > 0) {
+        strcpy(passageiros[index].usuario, novo_usuario);
+    }
+
+    printf("🔒 Nova senha: ");
+    char nova_senha[MAX_SENHA];
+    fgets(nova_senha, MAX_SENHA, stdin);
+    nova_senha[strcspn(nova_senha, "\n")] = '\0';
+    if (strlen(nova_senha) > 0) {
+        strcpy(passageiros[index].senha, nova_senha);
+    }
+
+    printf("\n✈ Voo atual: %d | Destino: %s\n", 
+           avioes[passageiros[index].aviao_idx].codigo,
+           avioes[passageiros[index].aviao_idx].destino);
+    
+    printf("Deseja alterar o voo? (s/n): ");
+    char opcao = tolower(getchar());
+    limpa_buffer();
+
+    if (opcao == 's') {
+        exibir_titulo("AVIÕES DISPONÍVEIS");
+        for (int i = 0; i < total_avioes; i++) {
+            printf(" ✈ Código: %d | Destino: %s | Horário: %s | Assentos: %d\n", 
+                   avioes[i].codigo, avioes[i].destino, avioes[i].horario, avioes[i].assentos_disponiveis);
+        }
+
+        printf("\n✈ Digite o código do novo avião: ");
+        int codigo;
+        scanf("%d", &codigo);
+        limpa_buffer();
+
+        int aviao_encontrado = -1;
+        for (int i = 0; i < total_avioes; i++) {
+            if (avioes[i].codigo == codigo) {
+                aviao_encontrado = i;
+                break;
+            }
+        }
+
+        if (aviao_encontrado != -1) {
+            passageiros[index].aviao_idx = aviao_encontrado;
+            passageiros[index].portao_embarque = gerar_portao();
+        } else {
+            exibir_mensagem_erro("Avião não encontrado! Voo não alterado.");
+        }
+    }
+
+    exibir_mensagem_sucesso("Passageiro atualizado com sucesso!");
+}
+
+// Remover passageiro
+void remover_passageiro(Passageiro passageiros[], int *total_passageiros, Aviao avioes[]) {
+    exibir_titulo("REMOVER PASSAGEIRO");
+    
+    int id;
+    printf("🔍 Digite o ID do passageiro a ser removido: ");
+    scanf("%d", &id);
+    limpa_buffer();
+
+    int index = -1;
+    for (int i = 0; i < *total_passageiros; i++) {
+        if (passageiros[i].id == id) {
+            index = i;
+            break;
+        }
+    }
+
+    if (index == -1) {
+        exibir_mensagem_erro("Passageiro não encontrado!");
+        return;
+    }
+
+    // Devolver assentos ao avião se houver passagens compradas
+    if (passageiros[index].passagens_compradas > 0) {
+        avioes[passageiros[index].aviao_idx].assentos_disponiveis += passageiros[index].passagens_compradas;
+    }
+
+    // Mover os passageiros restantes para preencher o espaço
+    for (int i = index; i < *total_passageiros - 1; i++) {
+        passageiros[i] = passageiros[i + 1];
+    }
+
+    (*total_passageiros)--;
+
+    exibir_mensagem_sucesso("Passageiro removido com sucesso!");
+}
+
+// Listar todos os passageiros (gerente)
+void listar_passageiros(Passageiro passageiros[], int total_passageiros, Aviao avioes[]) {
+    exibir_titulo("LISTA DE PASSAGEIROS");
+    
+    if (total_passageiros == 0) {
+        exibir_mensagem_erro("Nenhum passageiro cadastrado.");
+        return;
+    }
+
+    for (int i = 0; i < total_passageiros; i++) {
+        printf(" 🆔 ID: %d\n", passageiros[i].id);
+        printf(" 👤 Nome: %s\n", passageiros[i].nome);
+        printf(" 🔑 Usuário: %s\n", passageiros[i].usuario);
+        printf(" ✈ Voo: %d | Destino: %s | Horário: %s\n", 
+               avioes[passageiros[i].aviao_idx].codigo,
+               avioes[passageiros[i].aviao_idx].destino,
+               avioes[passageiros[i].aviao_idx].horario);
+        printf(" 🎫 Passagens compradas: %d\n", passageiros[i].passagens_compradas);
+        printf(" 🚪 Portão de embarque: %d\n", passageiros[i].portao_embarque);
+        printf("----------------------------------------\n");
+    }
+}
+
+// Listar todos os aviões
+void listar_avioes(Aviao avioes[], int total_avioes) {
+    exibir_titulo("LISTA DE AVIÕES");
+    
+    if (total_avioes == 0) {
+        exibir_mensagem_erro("Nenhum avião cadastrado.");
+        return;
+    }
+
+    for (int i = 0; i < total_avioes; i++) {
+        printf(" ✈ Código: %d\n", avioes[i].codigo);
+        printf(" 🌍 Destino: %s\n", avioes[i].destino);
+        printf(" 🕒 Horário: %s\n", avioes[i].horario);
+        printf(" 💺 Assentos disponíveis: %d\n", avioes[i].assentos_disponiveis);
+        printf("----------------------------------------\n");
+    }
+}
+
+// Menu do usuário
+void menu_usuario(Passageiro passageiros[], int total_passageiros, Aviao avioes[]) {
+    int opcao;
+    
+    do {
+        exibir_linha();
+        printf("        ✈ MENU DO PASSAGEIRO ✈\n");
+        exibir_linha();
+        printf("\n");
+        printf(" 1. Comprar passagem\n");
+        printf(" 2. Visualizar minhas passagens\n");
+        printf(" 3. Voltar\n");
+        printf("\n");
+        exibir_linha();
+        printf("👉 Escolha uma opção: ");
+        
+        scanf("%d", &opcao);
+        limpa_buffer();
+
+        switch (opcao) {
+            case 1:
+                comprar_passagem(passageiros, total_passageiros, avioes);
+                break;
+            case 2:
+                visualizar_minhas_passagens(passageiros, total_passageiros, avioes);
+                break;
+            case 3:
+                printf("Voltando ao menu principal...\n");
+                break;
+            default:
+                exibir_mensagem_erro("Opção inválida!");
+        }
+    } while (opcao != 3);
+}
+
+// Menu do gerente
+void menu_gerente(Passageiro passageiros[], int *total_passageiros, Aviao avioes[], int *total_avioes) {
+    char senha[MAX_SENHA];
+    printf("🔒 Digite a senha de gerente: ");
+    fgets(senha, MAX_SENHA, stdin);
+    senha[strcspn(senha, "\n")] = '\0';
+
+    if (strcmp(senha, SENHA_GERENTE) != 0) {
+        exibir_mensagem_erro("Senha incorreta!");
+        return;
+    }
+
+    int opcao;
+    
+    do {
+        exibir_linha();
+        printf("        ✈ MENU DO GERENTE ✈\n");
+        exibir_linha();
+        printf("\n");
+        printf(" 1. Cadastrar avião\n");
+        printf(" 2. Cadastrar passageiro\n");
+        printf(" 3. Consultar passageiro\n");
+        printf(" 4. Editar passageiro\n");
+        printf(" 5. Remover passageiro\n");
+        printf(" 6. Listar todos os passageiros\n");
+        printf(" 7. Listar todos os aviões\n");
+        printf(" 8. Voltar\n");
+        printf("\n");
+        exibir_linha();
+        printf("👉 Escolha uma opção: ");
+        
+        scanf("%d", &opcao);
+        limpa_buffer();
+
+        switch (opcao) {
+            case 1:
+                cadastrar_aviao(avioes, total_avioes);
+                break;
+            case 2:
+                cadastrar_passageiro(passageiros, total_passageiros, avioes, *total_avioes);
+                break;
+            case 3:
+                consultar_passageiro(passageiros, *total_passageiros, avioes);
+                break;
+            case 4:
+                editar_passageiro(passageiros, *total_passageiros, avioes, *total_avioes);
+                break;
+            case 5:
+                remover_passageiro(passageiros, total_passageiros, avioes);
+                break;
+            case 6:
+                listar_passageiros(passageiros, *total_passageiros, avioes);
+                break;
+            case 7:
+                listar_avioes(avioes, *total_avioes);
+                break;
+            case 8:
+                printf("Voltando ao menu principal...\n");
+                break;
+            default:
+                exibir_mensagem_erro("Opção inválida!");
+        }
+    } while (opcao != 8);
+}
+
+void menu_principal() {
+    Passageiro passageiros[MAX_PASSAGEIROS];
+    int total_passageiros = 0;
+    Aviao avioes[MAX_AVIOES];
+    int total_avioes = 0;
+
+    // Inicializar gerador de números aleatórios
+    srand(time(NULL));
+
+    int opcao;
+    
+    do {
+        exibir_linha();
+        printf("     ✈ COMPANHIA AÉREA LATAM ✈\n");
+        exibir_linha();
+        printf("\n");
+        printf(" 1. Acesso Passageiro\n");
+        printf(" 2. Acesso Gerente\n");
+        printf(" 3. Sair\n");
+        printf("\n");
+        exibir_linha();
+        printf("👉 Escolha uma opção: ");
+        
+        scanf("%d", &opcao);
+        limpa_buffer();
+
+        switch (opcao) {
+            case 1:
+                menu_usuario(passageiros, total_passageiros, avioes);
+                break;
+            case 2:
+                menu_gerente(passageiros, &total_passageiros, avioes, &total_avioes);
+                break;
+            case 3:
+                exibir_mensagem_sucesso("Saindo do sistema... Até logo!");
+                break;
+            default:
+                exibir_mensagem_erro("Opção inválida!");
+        }
+    } while (opcao != 3);
+}
+
+int main() {
+    menu_principal();
+    return 0;
+}
